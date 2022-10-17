@@ -2,10 +2,8 @@ library(ggplot2)
 library(httr)
 library(jsonlite)
 library(stringr)
+library(tidyr)
 library("writexl")
-
-
-#NOTE: Refer to this documentation https://rdrr.io/cran/httr/man/add_headers.html for instructions on adding headers
 
 # Plan: 
 #   1. Obtain list of Hotel IDs. 
@@ -18,10 +16,12 @@ library("writexl")
 #   3. To test the endpoint in postman, use copy all as CURL (cmd) < important! and import it over. Monitor what is needed the headers and add it in our request here.
 #   4. We will be using hotelSearchNeaby to find IDs
 
+# Initialize an empty data frame
+df_hotel_info <- data.frame(matrix(ncol=7, nrow=0))
+colnames(df_hotel_info) <- c('star', 'hotelName','hotelId','location', 'favorityCountMsg','score', 'totalReviews')
 
-
-
-# Trip.com scraping the HotelSeachNearby api
+#NOTE: Refer to this documentation https://rdrr.io/cran/httr/man/add_headers.html for instructions on adding headers
+# Trip.com scraping the HotelSeachNearby api function
 apiCallNearbyHotel <- function(masterHotelId){
   res = POST(
     "https://sg.trip.com/restapi/soa2/16708/json/hotelSearchNearby?x-traceID=1658849562341.1pmnm5-1666016479066-1666203502",
@@ -50,11 +50,41 @@ apiCallNearbyHotel <- function(masterHotelId){
   return(jsonData)
 }
 
-id <- as.integer(996326)
-newData <- apiCallNearbyHotel(id)
+# This function helps to remove the unused data, for easy reference on data avail, can check here
+removeData <- function(data){
+  data$base$picture = NULL
+  data$base$starType = NULL
+  data$base$badge = NULL
+  data$base$hotelUniqueKey = NULL
+  data$base$isFavoriteHotel = NULL
+  data$money = NULL
+  data$position$cityId = NULL
+  data$position$cityName = NULL
+  data$position$distance = NULL
+  data$position$lat = NULL
+  data$position$lng = NULL
+  data$position$regionType = NULL
+  data$position$countryId = NULL
+  data$encourage$roomHoldMessage = NULL
+  data$encourage$freeCancelTag = NULL
+  data$encourage$childrenFreeTag = NULL
+  data$encourage$loginGuide = NULL
+  data$comment$scoreMax = NULL
+  data$comment$scoreDescription = NULL
+  data$comment$topQuality = NULL
+  data$seoInfo = NULL
+  return(data)
+}
 
 
-# Now we can start crawling for unique hotel IDs. From hotel list -> base$hotelid -> store in a list -> loop and call -> ensure that only unique ID is used -> ensure that we dont repeat call
-
-
+# This function initializes the api call web crawling can appends the findings to df_hotel_info
+crawlTripHotelIds <- function(hotelIds){
+  for(i in hotelIds){
+    data <- apiCallNearbyHotel(i)
+    data <- removeData(data)
+    data <- as.data.frame(unnest(data, cols = c(base, position, encourage, comment)))
+    df_hotel_info <- rbind(df_hotel_info, data)
+  }
+}
+hotelIds <- as.integer(996326)
 
