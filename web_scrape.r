@@ -111,7 +111,6 @@ add_cols <- function(df, cols) {
 hotel_info_df <- read_excel("trip_com_HOTEL_ID.xlsx")
 hotelIds <- as.vector(hotel_info_df$HOTEL_ID)
 head(hotelIds)
-
 # New hotel ids -> MANAULLY factor in more locations
 hotelIds2 <- c(712600, 56704737,7982267,996309, 687490)
 
@@ -143,14 +142,82 @@ for(i in hotelIds2){
 # Checkpoint - write.csv
 df_hotel_info_csv <- subset(df_hotel_info, select = -c(topQuality))
 write.csv(df_hotel_info_csv,"hotel_info_list.csv", row.names = FALSE)
- 
 
 # Add point of interest to hotels using API
 
 
 
 
-res2 = POST(
+# Read csv 
+hotel_master_data = read.csv("hotel_info_list.csv")
+hotel_ids <- hotel_master_data$hotelId
+
+# initialize a new user review data frame
+user_review_data <- data.frame(matrix(ncol=13, nrow=0))
+cols <- c('hotelId', 'userId','nickname', 'checkinDate','content','travelType', 'travelTypeText', 'ratingAll','ratingLocation','ratingFacility', 'ratingService', 'ratingRoom', 'commentLevel')
+colnames(user_review_data) <- cols
+
+# Page should be set to 40 - we can aim to cycle through 3 pages each hotel -> that should obtain us 120 users per hotel and since we have 268 hotels that is 32160 user data
+# We hope to obtain repeat users but lets just hope for now
+apiCallUserReview <- function(masterHotelId){
+  
+  user_data <- data.frame(matrix(ncol=13, nrow=0))
+  cols <- c('hotelId', 'userId','nickname', 'checkinDate','content','travelType', 'travelTypeText', 'ratingAll','ratingLocation','ratingFacility', 'ratingService', 'ratingRoom', 'commentLevel')
+  colnames(user_data) <- cols
+  
+  for(i in masterHotelId ){
+    for(k in 1:3){
+      res = POST(
+        "https://sg.trip.com/restapi/soa2/24077/clientHotelCommentList",
+        add_headers('User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 Firefox/106.0'),
+        add_headers('Accept: application/json'),
+        add_headers('Accept-Language: en-US,en;q=0.5'),
+        add_headers('Accept-Encoding: gzip, deflate, br'),
+        add_headers('P: 47887882168'),
+        add_headers('PID: ce3f61ab-ca1c-40f5-a07e-90268165235b'),
+        add_headers('Content-Type: application/json'),
+        add_headers('Origin: https://sg.trip.com'),
+        add_headers('Connection: keep-alive'),
+        add_headers('Cookie: ibulanguage=SG; ibulocale=en_sg; cookiePricesDisplayed=SGD; _abtest_userid=e4a61ab1-1321-4cb1-8067-e3e566e27d8b; IBU_showtotalamt=1; _bfa=1.1666344215688.hw1qp.1.1666442735463.1666448956339.5.37.1; _ubtstatus=%7B%22vid%22%3A%221666344215688.hw1qp%22%2C%22sid%22%3A5%2C%22pvid%22%3A37%2C%22pid%22%3A10320668147%7D; _gcl_au=1.1.813124332.1666344216; _ga_X437DZ73MR=GS1.1.1666414659.2.1.1666417832.0.0.0; _ga=GA1.2.156763681.1666344217; _gid=GA1.2.1653792527.1666344217; _fbp=fb.1.1666344216997.1265240203; _RF1=222.164.149.41; _RSG=9F4m_99a.zCzTlr5WcgIN8; _RDG=28a03e25478b0529ec15ae4adf1c31395a; _RGUID=cf7e9092-7fc0-43c9-85d2-aa6805d6f77d; _bfaStatusPVSend=1; _bfaStatus=fail; hotel=10231080; _uetsid=0a93ffc0512211ed8aa7f31417cc35c1; _uetvid=0a940be0512211eda5b9db1a18f8ee1a; ibu_home_language_match_union_flag=0; ibu_online_home_language_match={"isFromTWNotZh":false,"isFromIPRedirect":false,"isFromLastVisited":false,"isRedirect":false,"isShowSuggestion":false,"lastVisited":"https://sg.trip.com?locale=en-sg"}; _tp_search_latest_channel_name=hotels; IBU_TRANCE_LOG_P=47887882168; IBU_TRANCE_LOG_URL=%2Fhotels%2Fdetail%2F%3FcityId%3D73%26hotelId%3D687592%26checkIn%3D2022-10-21%26checkOut%3D2022-10-22%26adult%3D1%26children%3D0%26subStamp%3D1456%26crn%3D1%26ages%3D%26travelpurpose%3D0%26curr%3DSGD%26link%3Dbutton%26hoteluniquekey%3DH4sIAAAAAAAAAOPaxcTFJMEoxMTBKLWeiaNl2pFPjBa_BR37D33ViAnudPAEMy72OgTwFDKAgMZEh0bGjAR7eYWQLodJjE2MnGAV7pUOgoW2XNcX15Q6KLlwnDz2g0dARKL50XF5BUZNsEaGfgdDGMMi1jExJEgdZIQnjBHExnFhBqMESxQbx801qRIcSgoKLBCdDVFQnUCGxTPOIFaO84wSTFEMTmwc_3YzSbDMYGz5W7uREazkR6LDDkamA4z_YYDxBOMexgVMU_YX7GKCqj_ExMoxUUyC5RQTwyUmhltMDI-AMs9WAO1-xcTwiQlq_y-Y8iZmhi5mhknMEE2zmKFqFzEzSPEkplkYppkkJRqaJqYoCGmcuHtyFpuR9CRGpmD3U4zChmZmZsYmJkaGpmYWFnoZ5YaFBVbMUoxuHoxBbBbmZi4G5lEyXMzB7i6CHLazQ-d7izhIgXiKMF4Sa2qebrB7xluuAsYGRsYuRg4BRg_GCMYKxleMIIUA8OoWe70BAAA%26subChannel%3D; intl_ht1=h4%3D73_10231080%2C73_962739%2C73_687592; librauuid=; hotelhst=1164390341'),
+        add_headers('Sec-Fetch-Dest: empty'),
+        add_headers('Sec-Fetch-Mode: cors'),
+        add_headers('Sec-Fetch-Site: same-origin'),
+        add_headers('TE: trailers'),
+        body = sprintf('{"hotelId":%d,"pageIndex":%d,"pageSize":40,"orderBy":0,"commentTagList":[],"commentTagV2List":[],"travelTypeList":[],"roomList":[],"packageList":[],"commonStatisticList":[],"UnusefulReviewPageIndex":1,"repeatComment":1,"functionOptions":["IntegratedTARating","hidePicAndVideoAgg"],"webpSupport":true,"platform":"online","pageID":"10320668147","head":{"Version":"","userRegion":"SG","Locale":"en-SG","LocaleController":"en-SG","TimeZone":"8","Currency":"SGD","PageId":"10320668147","webpSupport":true,"userIP":"","P":"47887882168","ticket":"","clientID":"1666344215688.hw1qp","Frontend":{"vid":"1666344215688.hw1qp","sessionID":5,"pvid":37},"group":"TRIP","bu":"IBU","platform":"PC","Union":{"AllianceID":"","SID":"","Ouid":""},"HotelExtension":{"group":"TRIP","hasAidInUrl":false,"Qid":778584087182,"WebpSupport":true,"PID":"ce3f61ab-ca1c-40f5-a07e-90268165235b"}}}', as.integer(i), as.integer(k)),
+        verbose()
+      )
+      data <- content(res)
+      if(length(data$groupList) != 0){
+        for(j in 1:length(data$groupList[[1]]$commentList)){
+          df = data.frame(
+            hotelId = i,
+            userId = data$groupList[[1]]$commentList[[j]]$userInfo$userId,
+            nickname = data$groupList[[1]]$commentList[[j]]$userInfo$nickName,
+            checkinDate = data$groupList[[1]]$commentList[[j]]$checkinDate,
+            content = data$groupList[[1]]$commentList[[j]]$content,
+            travelType = data$groupList[[1]]$commentList[[j]]$travelType,
+            travelTypeText = data$groupList[[1]]$commentList[[j]]$travelTypeText,
+            ratingAll = data$groupList[[1]]$commentList[[j]]$ratingInfo$ratingAll,
+            ratingLocation = data$groupList[[1]]$commentList[[j]]$ratingInfo$ratingLocation,
+            ratingFacility = data$groupList[[1]]$commentList[[j]]$ratingInfo$ratingFacility,
+            ratingService = data$groupList[[1]]$commentList[[j]]$ratingInfo$ratingService,
+            ratingRoom = data$groupList[[1]]$commentList[[j]]$ratingInfo$ratingRoom,
+            commentLevel = data$groupList[[1]]$commentList[[j]]$ratingInfo$commentLevel
+          )
+          user_data <- rbind(user_data, df)
+        }
+      }
+    }
+  }
+  return(user_data)
+}
+user_review_data <- apiCallUserReview()
+# shorter testing 
+hotelIds3 <- c(97209990, 905760)
+user_review_data <- apiCallUserReview(as.integer(unlist(hotelIds3)))
+
+# testing code
+res = POST(
   "https://sg.trip.com/restapi/soa2/24077/clientHotelCommentList",
   add_headers('User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:106.0) Gecko/20100101 Firefox/106.0'),
   add_headers('Accept: application/json'),
@@ -167,7 +234,30 @@ res2 = POST(
   add_headers('Sec-Fetch-Mode: cors'),
   add_headers('Sec-Fetch-Site: same-origin'),
   add_headers('TE: trailers'),
-  body = '{"hotelId":10231080,"pageIndex":1,"pageSize":10,"orderBy":0,"commentTagList":[],"commentTagV2List":[],"travelTypeList":[],"roomList":[],"packageList":[],"commonStatisticList":[],"UnusefulReviewPageIndex":1,"repeatComment":1,"functionOptions":["IntegratedTARating","hidePicAndVideoAgg"],"webpSupport":true,"platform":"online","pageID":"10320668147","head":{"Version":"","userRegion":"SG","Locale":"en-SG","LocaleController":"en-SG","TimeZone":"8","Currency":"SGD","PageId":"10320668147","webpSupport":true,"userIP":"","P":"47887882168","ticket":"","clientID":"1666344215688.hw1qp","Frontend":{"vid":"1666344215688.hw1qp","sessionID":5,"pvid":37},"group":"TRIP","bu":"IBU","platform":"PC","Union":{"AllianceID":"","SID":"","Ouid":""},"HotelExtension":{"group":"TRIP","hasAidInUrl":false,"Qid":778584087182,"WebpSupport":true,"PID":"ce3f61ab-ca1c-40f5-a07e-90268165235b"}}}',
+  body = sprintf('{"hotelId":%d,"pageIndex":%d,"pageSize":40,"orderBy":0,"commentTagList":[],"commentTagV2List":[],"travelTypeList":[],"roomList":[],"packageList":[],"commonStatisticList":[],"UnusefulReviewPageIndex":1,"repeatComment":1,"functionOptions":["IntegratedTARating","hidePicAndVideoAgg"],"webpSupport":true,"platform":"online","pageID":"10320668147","head":{"Version":"","userRegion":"SG","Locale":"en-SG","LocaleController":"en-SG","TimeZone":"8","Currency":"SGD","PageId":"10320668147","webpSupport":true,"userIP":"","P":"47887882168","ticket":"","clientID":"1666344215688.hw1qp","Frontend":{"vid":"1666344215688.hw1qp","sessionID":5,"pvid":37},"group":"TRIP","bu":"IBU","platform":"PC","Union":{"AllianceID":"","SID":"","Ouid":""},"HotelExtension":{"group":"TRIP","hasAidInUrl":false,"Qid":778584087182,"WebpSupport":true,"PID":"ce3f61ab-ca1c-40f5-a07e-90268165235b"}}}', as.integer(97209990), 1),
   verbose()
 )
+data = content(res)
+
+for(j in 1:40){
+    df = data.frame(
+    hotelId = 10231080,
+    userId = data$groupList[[1]]$commentList[[j]]$userInfo$userId,
+    nickname = data$groupList[[1]]$commentList[[j]]$userInfo$nickName,
+    checkinDate = data$groupList[[1]]$commentList[[j]]$checkinDate,
+    content = data$groupList[[1]]$commentList[[j]]$content,
+    travelType = data$groupList[[1]]$commentList[[j]]$travelType,
+    travelTypeText = data$groupList[[1]]$commentList[[j]]$travelTypeText,
+    ratingAll = data$groupList[[1]]$commentList[[j]]$ratingInfo$ratingAll,
+    ratingLocation = data$groupList[[1]]$commentList[[j]]$ratingInfo$ratingLocation,
+    ratingFacility = data$groupList[[1]]$commentList[[j]]$ratingInfo$ratingFacility,
+    ratingService = data$groupList[[1]]$commentList[[j]]$ratingInfo$ratingService,
+    ratingRoom = data$groupList[[1]]$commentList[[j]]$ratingInfo$ratingRoom,
+    commentLevel = data$groupList[[1]]$commentList[[j]]$ratingInfo$commentLevel
+  )
+  user_review_data <- rbind(user_review_data, df)
+}
+
+
+
 
