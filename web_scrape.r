@@ -164,7 +164,7 @@ apiCallUserReview <- function(masterHotelId){
   user_data <- data.frame(matrix(ncol=13, nrow=0))
   cols <- c('hotelId', 'userId','nickname', 'checkinDate','content','travelType', 'travelTypeText', 'ratingAll','ratingLocation','ratingFacility', 'ratingService', 'ratingRoom', 'commentLevel')
   colnames(user_data) <- cols
-  
+
   for(i in masterHotelId ){
     for(k in 1:3){
       res = POST(
@@ -211,10 +211,15 @@ apiCallUserReview <- function(masterHotelId){
   }
   return(user_data)
 }
-user_review_data <- apiCallUserReview()
+user_review_data <- apiCallUserReview(hotel_ids)
 # shorter testing 
 hotelIds3 <- c(97209990, 905760)
-user_review_data <- apiCallUserReview(as.integer(unlist(hotelIds3)))
+
+user_review_data <- apiCallUserReview(hotelIds3)
+
+# write as csv SUCCESS~!
+write.csv(user_review_data,"user_review_data.csv", row.names = FALSE)
+
 
 # testing code
 res = POST(
@@ -259,5 +264,23 @@ for(j in 1:40){
 }
 
 
+# Read csv 
+user_data = read.csv("workfile_user_review_data.csv")
+hotel_master_data = read.csv("hotel_info_list.csv")
 
+user_id_list = unique(user_data$userId_cleaned)
+hotel_id_list = unique(hotel_master_data$hotelId)
+                  
+# Create matrix user to hotel id with rating all < This will be the first approach 
+mat <- matrix(0,
+              ncol = length(hotel_id_list), 
+              nrow = length(user_id_list)
+              )
+colnames(mat) <- hotel_id_list
+rownames(mat) <- user_id_list
 
+for(i in user_data){ 
+ hotel_index =  which(hotel_id_list == i$hotelId )
+ user_index = which(user_id_list == i$userId_cleaned)
+ mat[c(user_index),c(hotel_index)] <- i$ratingAll
+}
