@@ -279,8 +279,12 @@ mat <- matrix(0,
 colnames(mat) <- hotel_id_list
 rownames(mat) <- user_id_list
 
-for(i in user_data){ 
- hotel_index =  which(hotel_id_list == i$hotelId )
- user_index = which(user_id_list == i$userId_cleaned)
- mat[c(user_index),c(hotel_index)] <- i$ratingAll
+test = c(100,200)
+
+for(i in 1:nrow(user_data)){ 
+print(i)
+ hotel_index =  which(hotel_id_list == user_data[i,]$hotelId )
+ user_index = which(user_id_list == user_data[i,]$userId_cleaned)
+ mat[user_index,hotel_index] <- user_data[i,]$ratingAll
 }
+
