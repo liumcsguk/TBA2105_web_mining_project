@@ -1,0 +1,59 @@
+#incomplete - 
+
+library(dplyr)
+
+hotels <- read.csv("user_review_data.csv")
+hotels2 <- read.csv("workfile_user_review_data.csv")
+hotelinfo <- read.csv("hotel_info_list.csv")
+
+hotels <- hotels2
+
+hotels$travelTypeText <- as.factor(hotels$travelTypeText)
+
+hotelNames <- cbind(hotelinfo$hotelId, hotelinfo$hotelName, hotelinfo$location)
+colnames(hotelNames) <- c("HotelID","HotelNames","Location")
+hotelNames <- as.data.frame(hotelNames)
+hotelNames <- unique(hotelNames)
+
+#average over all ratings based on user reviews
+hotelsbyratingAll <- hotels %>% group_by(hotelId) %>% mutate(averageRating = mean(ratingAll))
+hotelsOverallRating <- cbind(hotels$hotelId,hotelsbyratingAll$averageRating)
+hotelsOverallRating <- unique(hotelsOverallRating)
+
+colnames(hotelsOverallRating) <- c("HotelID","OverallRating")
+hotelsOverallRating <- as.data.frame(hotelsOverallRating)
+hotelsOverallRating$HotelID <- as.factor(hotelsOverallRating$HotelID)
+hotelsOVerallRating <- hotelsOverallRating[order(hotelsOverallRating$OverallRating, decreasing=TRUE),]
+
+plot(hotelsOverallRating$OverallRating, hotelsOVerallRating$HotelID)
+
+top10Overall <- left_join(x=hotelsOverallRating,y=hotelNames)
+
+
+# average location ratings based on user reviews
+hotelsbyLocation <- hotels %>% group_by(hotelId) %>% mutate(averageLocationRating = mean(ratingLocation))
+hotelsbyLocation <- cbind(hotels$hotelId,hotelsbyLocation$averageLocationRating)
+hotelsbyLocation <- unique(hotelsbyLocation)
+
+colnames(hotelsbyLocation) <- c("HotelID","LocationRating")
+hotelsbyLocation <- as.data.frame(hotelsbyLocation)
+hotelsbyLocation$HotelID <- as.factor(hotelsbyLocation$HotelID)
+
+hotelsbyLocation <- hotelsbyLocation[order(hotelsbyLocation$LocationRating, decreasing=TRUE),]
+
+plot(hotelsbyLocation$LocationRating, hotelsbyLocation$HotelID)
+
+top10byLocation <- left_join(x=hotelsbyLocation,y=hotelNames)
+
+#average facilities ratings based on user reviews
+hotelsbyFacility <- hotels %>% group_by(hotelId) %>% mutate(averageFacilityRating = mean(ratingFacility))
+hotelsbyFacility <- cbind(hotels$hotelId,hotelsbyFacility$averageFacilityRating)
+hotelsbyFacility <- unique(hotelsbyFacility)
+
+colnames(hotelsbyFacility) <- c("HotelID","FacilityRating")
+hotelsbyFacility <- as.data.frame(hotelsbyFacility)
+hotelsbyFacility$HotelID <- as.factor(hotelsbyFacility$HotelID)
+
+hotelsbyFacility <- hotelsbyFacility[order(hotelsbyFacility$FacilityRating, decreasing=TRUE),]
+
+top10byFacility <- left_join(x=hotelsbyFacility,y=hotelNames)
